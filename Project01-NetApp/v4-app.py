@@ -8,7 +8,7 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
 
-# Worker Thread to Run Commands (Ping/Traceroute/Whois)
+# Worker Thread to Run Commands (Ping/Traceroute/Whois/NSLookup)
 class CommandWorker(QThread):
     output_signal = pyqtSignal(str)  # Signal to send output back to GUI
 
@@ -33,10 +33,10 @@ class CommandWorker(QThread):
 
 
 # Main GUI Class
-class PingTracerouteUtility(QMainWindow):
+class NetworkUtility(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Network Utility - Ping, Traceroute, Whois")
+        self.setWindowTitle("Network Utility - Ping, Traceroute, Whois, NSLookup")
         self.setGeometry(300, 100, 800, 600)
         self.setStyleSheet("background-color: #0d1117; color: #00FF00;")
 
@@ -51,10 +51,12 @@ class PingTracerouteUtility(QMainWindow):
         self.ping_tab = self.create_ping_tab()
         self.traceroute_tab = self.create_traceroute_tab()
         self.whois_tab = self.create_whois_tab()
+        self.nslookup_tab = self.create_nslookup_tab()
 
         self.tab_widget.addTab(self.ping_tab, "Ping")
         self.tab_widget.addTab(self.traceroute_tab, "Traceroute")
         self.tab_widget.addTab(self.whois_tab, "Whois")
+        self.tab_widget.addTab(self.nslookup_tab, "NSLookup")
 
         main_layout.addWidget(self.tab_widget)
 
@@ -208,6 +210,49 @@ class PingTracerouteUtility(QMainWindow):
         tab.setLayout(layout)
         return tab
 
+    def create_nslookup_tab(self):
+        """Create the NSLookup tool tab."""
+        layout = QVBoxLayout()
+
+        input_layout = QHBoxLayout()
+        self.nslookup_input = QLineEdit()
+        self.nslookup_input.setPlaceholderText("Enter domain name or IP address")
+        self.nslookup_input.setFont(QFont("Consolas", 11))
+        self.nslookup_input.setStyleSheet("padding: 5px; color: #00FF00; background-color: #111; border: 1px solid #00FF00;")
+        input_layout.addWidget(self.nslookup_input)
+
+        self.nslookup_button = QPushButton("Run NSLookup")
+        self.nslookup_button.setFont(QFont("Consolas", 11))
+        self.nslookup_button.setStyleSheet("background-color: #003300; color: #00FF00;")
+        self.nslookup_button.clicked.connect(self.run_nslookup)
+        input_layout.addWidget(self.nslookup_button)
+
+        self.stop_nslookup_button = QPushButton("Stop")
+        self.stop_nslookup_button.setFont(QFont("Consolas", 11))
+        self.stop_nslookup_button.setStyleSheet("background-color: #550000; color: #FF0000;")
+        self.stop_nslookup_button.clicked.connect(self.stop_command)
+        input_layout.addWidget(self.stop_nslookup_button)
+
+        self.save_nslookup_button = QPushButton("Save Output")
+        self.save_nslookup_button.setFont(QFont("Consolas", 11))
+        self.save_nslookup_button.setStyleSheet("background-color: #003300; color: #00FF00;")
+        self.save_nslookup_button.clicked.connect(lambda: self.save_output(self.nslookup_output))
+        input_layout.addWidget(self.save_nslookup_button)
+
+        layout.addLayout(input_layout)
+
+        self.nslookup_output = QTextEdit()
+        self.nslookup_output.setReadOnly(True)
+        self.nslookup_output.setFont(QFont("Courier", 10))
+        self.nslookup_output.setStyleSheet(
+            "background-color: #111; color: #00FF00; border: 1px solid #00FF00; padding: 10px;"
+        )
+        layout.addWidget(self.nslookup_output)
+
+        tab = QWidget()
+        tab.setLayout(layout)
+        return tab
+
     def run_ping(self):
         """Run the Ping command."""
         target = self.ping_input.text()
@@ -248,6 +293,19 @@ class PingTracerouteUtility(QMainWindow):
         command = ["whois", target]
         self.start_command(command, self.whois_output)
 
+    def run_nslookup(self):
+        """Run the NSLookup command."""
+        target = self.nslookup_input.text()
+        if not target:
+            self.nslookup_output.setText("Please enter a valid domain name or IP address.")
+            return
+
+        # Clear output area for fresh output
+        self.nslookup_output.clear()
+
+        command = ["nslookup", target]
+        self.start_command(command, self.nslookup_output)
+
     def start_command(self, command, output_widget):
         """Start a command in a separate thread."""
         if self.worker and self.worker.isRunning():
@@ -280,9 +338,10 @@ class PingTracerouteUtility(QMainWindow):
         """Handle command completion."""
         self.status_label.setText("Status: Ready")
 
+
 # Run the App
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = PingTracerouteUtility()
+    window = NetworkUtility()
     window.show()
     sys.exit(app.exec_())
