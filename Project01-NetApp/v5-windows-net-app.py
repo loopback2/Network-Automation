@@ -35,17 +35,31 @@ class CommandWorker(QThread):
 
 # Helper Functions to Adjust Commands Based on OS
 def get_ping_command(target, mode):
-    """Get the ping command based on the operating system."""
     if platform.system() == "Windows":
         if mode == "Standard Ping":
             return ["ping", "-n", "4", target]
         elif mode == "Continuous Ping":
-            return ["ping", "-t", target]  # Continuous ping on Windows
+            return ["ping", "-t", target]
     else:  # macOS/Linux
         if mode == "Standard Ping":
             return ["ping", "-c", "4", target]
         elif mode == "Continuous Ping":
-            return ["ping", target]  # Continuous ping by default on macOS/Linux
+            return ["ping", target]
+
+
+def get_traceroute_command(target):
+    if platform.system() == "Windows":
+        return ["tracert", target]
+    else:  # macOS/Linux
+        return ["traceroute", target]
+
+
+def get_whois_command(target):
+    return ["whois", target]  # Same command for both platforms
+
+
+def get_nslookup_command(target):
+    return ["nslookup", target]  # Same command for both platforms
 
 
 # Main GUI Class
@@ -64,15 +78,10 @@ class NetworkUtility(QMainWindow):
         self.tab_widget.setStyleSheet("QTabBar::tab { background: #003300; color: #00FF00; padding: 10px; }")
 
         # Add Tabs
-        self.ping_tab = self.create_ping_tab()
-        self.traceroute_tab = self.create_traceroute_tab()
-        self.whois_tab = self.create_whois_tab()
-        self.nslookup_tab = self.create_nslookup_tab()
-
-        self.tab_widget.addTab(self.ping_tab, "Ping")
-        self.tab_widget.addTab(self.traceroute_tab, "Traceroute")
-        self.tab_widget.addTab(self.whois_tab, "Whois")
-        self.tab_widget.addTab(self.nslookup_tab, "NSLookup")
+        self.tab_widget.addTab(self.create_ping_tab(), "Ping")
+        self.tab_widget.addTab(self.create_traceroute_tab(), "Traceroute")
+        self.tab_widget.addTab(self.create_whois_tab(), "Whois")
+        self.tab_widget.addTab(self.create_nslookup_tab(), "NSLookup")
 
         main_layout.addWidget(self.tab_widget)
 
@@ -88,14 +97,12 @@ class NetworkUtility(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
-        # Initialize Worker
         self.worker = None
 
     def create_ping_tab(self):
-        """Create the Ping tool tab."""
         layout = QVBoxLayout()
-
         input_layout = QHBoxLayout()
+
         self.ping_input = QLineEdit()
         self.ping_input.setPlaceholderText("Enter IP address or hostname")
         self.ping_input.setFont(QFont("Consolas", 11))
@@ -130,11 +137,9 @@ class NetworkUtility(QMainWindow):
         self.save_ping_button.clicked.connect(lambda: self.save_output(self.ping_output))
         button_layout.addWidget(self.save_ping_button)
 
-        # Center buttons
         input_layout.addStretch()
         input_layout.addLayout(button_layout)
         input_layout.addStretch()
-
         layout.addLayout(input_layout)
 
         self.ping_output = QTextEdit()
@@ -150,41 +155,21 @@ class NetworkUtility(QMainWindow):
         return tab
 
     def create_traceroute_tab(self):
-        """Create the Traceroute tool tab."""
         layout = QVBoxLayout()
-
         input_layout = QHBoxLayout()
+
         self.traceroute_input = QLineEdit()
         self.traceroute_input.setPlaceholderText("Enter IP address or hostname")
         self.traceroute_input.setFont(QFont("Consolas", 11))
         self.traceroute_input.setStyleSheet("padding: 5px; color: #00FF00; background-color: #111; border: 1px solid #00FF00;")
         input_layout.addWidget(self.traceroute_input)
 
-        button_layout = QHBoxLayout()
         self.traceroute_button = QPushButton("Traceroute")
         self.traceroute_button.setFont(QFont("Consolas", 11))
         self.traceroute_button.setFixedSize(120, 40)
         self.traceroute_button.setStyleSheet("background-color: #003300; color: #00FF00;")
         self.traceroute_button.clicked.connect(self.run_traceroute)
-        button_layout.addWidget(self.traceroute_button)
-
-        self.stop_traceroute_button = QPushButton("Stop")
-        self.stop_traceroute_button.setFont(QFont("Consolas", 11))
-        self.stop_traceroute_button.setFixedSize(100, 40)
-        self.stop_traceroute_button.setStyleSheet("background-color: #550000; color: #FF0000;")
-        self.stop_traceroute_button.clicked.connect(self.stop_command)
-        button_layout.addWidget(self.stop_traceroute_button)
-
-        self.save_traceroute_button = QPushButton("Save Output")
-        self.save_traceroute_button.setFont(QFont("Consolas", 11))
-        self.save_traceroute_button.setFixedSize(100, 40)
-        self.save_traceroute_button.setStyleSheet("background-color: #003300; color: #00FF00;")
-        self.save_traceroute_button.clicked.connect(lambda: self.save_output(self.traceroute_output))
-        button_layout.addWidget(self.save_traceroute_button)
-
-        input_layout.addStretch()
-        input_layout.addLayout(button_layout)
-        input_layout.addStretch()
+        input_layout.addWidget(self.traceroute_button)
 
         layout.addLayout(input_layout)
 
@@ -200,9 +185,130 @@ class NetworkUtility(QMainWindow):
         tab.setLayout(layout)
         return tab
 
-    # The Whois and NSLookup tabs can be updated similarly to ensure consistency
+    def create_whois_tab(self):
+        layout = QVBoxLayout()
+        input_layout = QHBoxLayout()
 
-    # Add the other methods for whois, nslookup, and command handling as needed...
+        self.whois_input = QLineEdit()
+        self.whois_input.setPlaceholderText("Enter domain or IP address")
+        self.whois_input.setFont(QFont("Consolas", 11))
+        self.whois_input.setStyleSheet("padding: 5px; color: #00FF00; background-color: #111; border: 1px solid #00FF00;")
+        input_layout.addWidget(self.whois_input)
+
+        self.whois_button = QPushButton("Whois")
+        self.whois_button.setFont(QFont("Consolas", 11))
+        self.whois_button.setFixedSize(100, 40)
+        self.whois_button.setStyleSheet("background-color: #003300; color: #00FF00;")
+        self.whois_button.clicked.connect(self.run_whois)
+        input_layout.addWidget(self.whois_button)
+
+        layout.addLayout(input_layout)
+
+        self.whois_output = QTextEdit()
+        self.whois_output.setReadOnly(True)
+        self.whois_output.setFont(QFont("Courier", 10))
+        self.whois_output.setStyleSheet(
+            "background-color: #111; color: #00FF00; border: 1px solid #00FF00; padding: 10px;"
+        )
+        layout.addWidget(self.whois_output)
+
+        tab = QWidget()
+        tab.setLayout(layout)
+        return tab
+
+    def create_nslookup_tab(self):
+        layout = QVBoxLayout()
+        input_layout = QHBoxLayout()
+
+        self.nslookup_input = QLineEdit()
+        self.nslookup_input.setPlaceholderText("Enter domain or IP address")
+        self.nslookup_input.setFont(QFont("Consolas", 11))
+        self.nslookup_input.setStyleSheet("padding: 5px; color: #00FF00; background-color: #111; border: 1px solid #00FF00;")
+        input_layout.addWidget(self.nslookup_input)
+
+        self.nslookup_button = QPushButton("NSLookup")
+        self.nslookup_button.setFont(QFont("Consolas", 11))
+        self.nslookup_button.setFixedSize(100, 40)
+        self.nslookup_button.setStyleSheet("background-color: #003300; color: #00FF00;")
+        self.nslookup_button.clicked.connect(self.run_nslookup)
+        input_layout.addWidget(self.nslookup_button)
+
+        layout.addLayout(input_layout)
+
+        self.nslookup_output = QTextEdit()
+        self.nslookup_output.setReadOnly(True)
+        self.nslookup_output.setFont(QFont("Courier", 10))
+        self.nslookup_output.setStyleSheet(
+            "background-color: #111; color: #00FF00; border: 1px solid #00FF00; padding: 10px;"
+        )
+        layout.addWidget(self.nslookup_output)
+
+        tab = QWidget()
+        tab.setLayout(layout)
+        return tab
+
+    def run_ping(self):
+        target = self.ping_input.text()
+        if not target:
+            self.ping_output.setText("Please enter a valid IP address or hostname.")
+            return
+        self.ping_output.clear()
+        command = get_ping_command(target, self.ping_mode_dropdown.currentText())
+        self.start_command(command, self.ping_output)
+
+    def run_traceroute(self):
+        target = self.traceroute_input.text()
+        if not target:
+            self.traceroute_output.setText("Please enter a valid IP address or hostname.")
+            return
+        self.traceroute_output.clear()
+        command = get_traceroute_command(target)
+        self.start_command(command, self.traceroute_output)
+
+    def run_whois(self):
+        target = self.whois_input.text()
+        if not target:
+            self.whois_output.setText("Please enter a valid domain or IP address.")
+            return
+        self.whois_output.clear()
+        command = get_whois_command(target)
+        self.start_command(command, self.whois_output)
+
+    def run_nslookup(self):
+        target = self.nslookup_input.text()
+        if not target:
+            self.nslookup_output.setText("Please enter a valid domain or IP address.")
+            return
+        self.nslookup_output.clear()
+        command = get_nslookup_command(target)
+        self.start_command(command, self.nslookup_output)
+
+    def start_command(self, command, output_widget):
+        if self.worker and self.worker.isRunning():
+            output_widget.setText("A command is already running. Please stop it first.")
+            return
+        self.worker = CommandWorker(command)
+        self.worker.output_signal.connect(lambda text: output_widget.append(text))
+        self.worker.finished.connect(self.command_finished)
+        self.worker.start()
+
+    def stop_command(self):
+        if self.worker and self.worker.isRunning():
+            self.worker.stop()
+            self.worker.wait()
+            self.status_label.setText("Status: Stopped")
+        else:
+            self.status_label.setText("Status: No command running")
+
+    def save_output(self, output_widget):
+        filename, _ = QFileDialog.getSaveFileName(self, "Save Output", "", "Text Files (*.txt)")
+        if filename:
+            with open(filename, "w") as file:
+                file.write(output_widget.toPlainText())
+            self.status_label.setText("Output saved successfully.")
+
+    def command_finished(self):
+        self.status_label.setText("Status: Ready")
 
 
 # Run the App
